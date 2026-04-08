@@ -1,0 +1,35 @@
+name: Deploy to Bluehost
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Bluehost via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.BLUEHOST_HOST }}
+          username: ${{ secrets.BLUEHOST_USERNAME }}
+          key: ${{ secrets.BLUEHOST_SSH_KEY }}
+          port: 22
+          source: "index.html,assets/"
+          target: "~/public_html/henryljenkins"
+          overwrite: true
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.BLUEHOST_HOST }}
+          username: ${{ secrets.BLUEHOST_USERNAME }}
+          key: ${{ secrets.BLUEHOST_SSH_KEY }}
+          port: 22
+          script: |
+            echo "Deployment complete. Files in ~/public_html/henryljenkins:"
+            ls -la ~/public_html/henryljenkins/
