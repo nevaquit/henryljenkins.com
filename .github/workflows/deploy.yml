@@ -1,9 +1,9 @@
-name: Deploy to Bluehost
-
+name: Deploy to Bluehost via FTP
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,24 +12,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to Bluehost via SCP
-        uses: appleboy/scp-action@v0.1.7
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          host: ${{ secrets.BLUEHOST_HOST }}
-          username: ${{ secrets.BLUEHOST_USERNAME }}
-          key: ${{ secrets.BLUEHOST_SSH_KEY }}
-          port: 22
-          source: "index.html,assets/"
-          target: "~/public_html/henryljenkins"
-          overwrite: true
-
-      - name: Verify deployment
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.BLUEHOST_HOST }}
-          username: ${{ secrets.BLUEHOST_USERNAME }}
-          key: ${{ secrets.BLUEHOST_SSH_KEY }}
-          port: 22
-          script: |
-            echo "Deployment complete. Files in ~/public_html/henryljenkins:"
-            ls -la ~/public_html/henryljenkins/
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: /public_html/henryljenkins/
+          dangerous-clean-slate: false
