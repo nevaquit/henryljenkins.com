@@ -1053,25 +1053,53 @@
     document.querySelectorAll('.fade-in').forEach(el => el.classList.add('visible'));
   }, 800);
 
-  function handleFormSubmit(e) {
+  async function handleFormSubmit(e) {
     e.preventDefault();
+
     const btn = document.getElementById('submitBtn');
     const msg = document.getElementById('form-msg');
+    const form = e.target;
+    const originalBtnContent = btn.innerHTML;
+
     btn.textContent = 'Sending...';
     btn.style.opacity = '0.7';
     btn.disabled = true;
+    msg.style.display = 'none';
 
-    const form = e.target;
     const data = {
-      name: form.name.value,
-      email: form.email.value,
-      subject: form.subject.value,
-      message: form.message.value
+      name: form.name.value.trim(),
+      email: form.email.value.trim(),
+      subject: form.subject.value.trim(),
+      message: form.message.value.trim()
     };
 
-    const mailtoLink = `mailto:info@medstoreinc.com?subject=${encodeURIComponent(data.subject + ' - from ' + data.name)}&body=${encodeURIComponent('Name: ' + data.name + '\nEmail: ' + data.email + '\n\n' + data.message)}`;
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
 
-    setTimeout(() => {
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send message. Please try again.');
+      }
+
       msg.style.display = 'block';
       msg.className = 'success';
-      msg.textContent
+      msg.textContent = 'Thank you! Your message has been sent successfully.';
+      form.reset();
+    } catch (err) {
+      msg.style.display = 'block';
+      msg.className = 'error';
+      msg.textContent = err.message || 'Something went wrong. Please try again later.';
+    } finally {
+      btn.innerHTML = originalBtnContent;
+      btn.style.opacity = '1';
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
