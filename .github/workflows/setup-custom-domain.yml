@@ -1,0 +1,54 @@
+name: Setup Custom Domain
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure Cloudflare zone exists
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          DOMAIN="henryljenkins.com"
+          PROJECT="henryljenkins-com"
+
+          zone_id=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" | jq -r '.result[0].id // empty')
+
+          if [ -z "$zone_id" ]; then
+            echo "Creating zone $DOMAIN..."
+            create=$(curl -sS -X POST -H "Authorization: Bearer $CF_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "{\"name\":\"$DOMAIN\",\"account\":{\"id\":\"$CF_ACCOUNT\"},\"type\":\"full\",\"jump_start\":true}" \
+              "https://api.cloudflare.com/client/v4/zones")
+            echo "$create" | jq .
+            if [ "$(echo "$create" | jq -r '.success')" != "true" ]; then
+              echo "::error::Failed to create zone"
+              exit 1
+            fi
+            zone_id=$(echo "$create" | jq -r '.result.id')
+            echo "Nameservers:"
+            echo "$create" | jq -r '.result.name_servers[]'
+          else
+            echo "Zone already exists: $zone_id"
+            curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+              "https://api.cloudflare.com/client/v4/zones/$zone_id" | jq -r '.result | {status, name_servers}'
+          fi
+
+          echo "Checking Pages custom domain..."
+          domains=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$PROJECT/domains")
+          echo "$domains" | jq .
+
+          if [ "$(echo "$domains" | jq -r '.result[]? | select(.name=="'"$DOMAIN"'") | .name // empty')" != "$DOMAIN" ]; then
+            echo "Adding $DOMAIN to Pages project..."
+            add=$(curl -sS -X POST -H "Authorization: Bearer $CF_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "{\"name\":\"$DOMAIN\"}" \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/$PROJECT/domains")
+            echo "$add" | jq .
+          fi
